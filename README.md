@@ -24,16 +24,60 @@ The offensive section breaks down Belgium's attacking patterns. A shot map displ
 
 ## Technical Approach
 
-The analysis merges two data sources: frame-by-frame tracking data containing player and ball positions at each timestamp, and event data with discrete actions like passes, shots, and ball receipts. The tracking data enables spatial metrics like pitch control and average positions, while the event data provides context about actions and outcomes.
+The analysis merges two complementary data sources:
+
+- **Tracking data** — frame-by-frame positional data (~25 fps) containing x/y coordinates for all 22 players and the ball throughout the match. This enables spatial metrics like pitch control via Voronoi tessellation, average defensive positions, and counterpress movement patterns.
+- **Event data** — discrete match actions (passes, shots, ball receipts, etc.) enriched with StatsBomb-style attributes including xG values and pass end locations. This provides context about actions and outcomes.
+
+Both datasets are stored as pandas DataFrames in pickle format. The tracking data follows [kloppy](https://github.com/PySport/kloppy)'s standardized column naming convention (`home_PlayerName_x`, `away_PlayerName_y`, etc.) with coordinates in the UEFA standard system (105×68 m, centered at the origin before coordinate shifting). The event data uses StatsBomb's 120×80 coordinate system and is rescaled internally by the notebook.
+
+## Data Requirements
+
+> **Note:** This notebook requires proprietary tracking and event data that is not publicly available. The `data/` folder is excluded from version control.
+
+To run the notebook with your own data, you need two pickle files placed in the `data/` directory.
+
+### 1. Tracking data
+
+A pandas DataFrame with one row per frame (25 fps), containing:
+
+| Column | Description |
+|---|---|
+| `period_id` | Match period (1 or 2) |
+| `timestamp` | Frame timestamp as `timedelta` |
+| `frame_id` | Frame index |
+| `ball_state` | `"In"` or `"Dead"` |
+| `ball_owning_team_id` | Possessing team name |
+| `ball_x`, `ball_y`, `ball_z` | Ball coordinates (UEFA 105×68, centered at origin) |
+| `home_PlayerName_x/y` | Home player coordinates, one column pair per player |
+| `away_PlayerName_x/y` | Away player coordinates, one column pair per player |
+
+The easiest way to produce this format is to load tracking data with [kloppy](https://github.com/PySport/kloppy) and export it via `dataset.to_pandas()`. Update the `TRACKING_DATA_FILE` path in the config cell at the top of the notebook.
+
+### 2. Event data
+
+A pandas DataFrame compatible with the StatsBomb event schema, requiring at minimum:
+
+| Column | Description |
+|---|---|
+| `type` | Event type string (e.g. `"Pass"`, `"Shot"`, `"Ball Receipt*"`) |
+| `possession_team` | Possessing team name |
+| `location` | `[x, y]` in StatsBomb coordinates (120×80) |
+| `pass_end_location` | `[x, y]` for pass destination |
+| `shot_statsbomb_xg` | Expected goals value for shots |
+| `shot_outcome` | Shot result string (e.g. `"Goal"`, `"Saved"`) |
+
+Update the `EVENT_DATA_FILE` path in the config cell accordingly. StatsBomb open data can be loaded directly with [statsbombpy](https://github.com/statsbomb/statsbombpy) or [kloppy](https://github.com/PySport/kloppy), but note that **open data does not include tracking data** — sections relying on it (Defensive Shape, Counterpress, Pitch Control) require a proprietary tracking feed.
 
 ## Project Structure
 
 ```
 post-match-report/
 ├── fra_bel_postmatch.ipynb   # Main analysis notebook
-├── data/                      # Tracking and event data
-├── figures/                   # Individual visualizations
-└── match_report.pdf           # Final output
+├── data/                      # Tracking and event data (not included)
+├── figures/                   # Individual visualizations (generated)
+├── match_report.pdf           # Final one-page PDF report
+└── requirements.txt
 ```
 
 ## Installation

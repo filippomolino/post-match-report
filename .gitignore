@@ -10,9 +10,6 @@ Data/
 *.jpg
 *.jpeg
 
-# Generated reports
-*.pdf
-
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
